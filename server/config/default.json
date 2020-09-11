@@ -1,0 +1,4 @@
+{
+    "mongoURI": "mongodb+srv://eastern123:eastern123@bookclub-06ho0.mongodb.net/instagram-clone?retryWrites=true&w=majority",
+    "jwtSecret": "mysecrettoken"
+}
