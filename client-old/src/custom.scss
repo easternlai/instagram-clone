@@ -1,0 +1,18 @@
+//Override default variables before the import
+
+$theme-colors: (
+
+);
+// @import '../src/components/layout/jumbotron/Jumbotron.css';
+//Import Bootstrap and its default variables
+@import '~bootstrap/scss/bootstrap.scss';
+
+
+
+/*
+#EAE7DC 
+#D8C3A5
+#8E8D8A
+#E98074
+#E85A4F
+*/
