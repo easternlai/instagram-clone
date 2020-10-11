@@ -5,7 +5,7 @@ const User = require('../models/User');
 const ObjectId = require('mongoose').Types.ObjectId;
 const fs = require('fs');
 const crypto = require('crypto');
-// const { post } = require('../routes');
+const { post } = require('../routes');
 
 
 module.exports.retrieveUser = async (req, res, next ) => {

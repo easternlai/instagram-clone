@@ -24,16 +24,16 @@ const PostSchema = new Schema({
 
 //Deletes post votes and comments of post when deleted.
 
-PostSchema.pre('deleteOne', async function (next){
-    const postId = this.getQuery()['_id'];
-    try {
-        await mongoose.model('PostVote').deleteOne({ post: postId });
-        await mongoose.model('Comment').deleteMany({ post: postId });
-        next();
-    }catch(err){
-        next(err);
-    }
-});
+// PostSchema.pre('deleteOne', async function (next){
+//     const postId = this.getQuery()['_id'];
+//     try {
+//         await mongoose.model('PostVote').deleteOne({ post: postId });
+//         await mongoose.model('Comment').deleteMany({ post: postId });
+//         next();
+//     }catch(err){
+//         next(err);
+//     }
+// });
 
 const postModel = mongoose.model('Post', PostSchema);
 module.exports = postModel;
