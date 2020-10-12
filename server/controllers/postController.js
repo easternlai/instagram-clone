@@ -81,9 +81,12 @@ module.exports.createPost = async (req, res, next) => {
 
     try {
         const followersDocument = await Followers.find({user: user._id });
-        console.log(followersDocument);
+        const followers = followersDcoument[0].followers;
+
+        //Create socket update for each follower.
+
     } catch (err) {
-        next(err)
+        next(err);
     }
 
 

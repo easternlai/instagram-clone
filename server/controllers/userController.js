@@ -1,11 +1,11 @@
 const User = require('../models/User');
 // const Post = require("../models/Post");
-// const Followers = require('../models/Followers');
-// const Following = require('../models/Following');
+const Followers = require('../models/Followers');
+const Following = require('../models/Following');
 const ObjectId = require('mongoose').Types.ObjectId;
 const fs = require('fs');
 const crypto = require('crypto');
-const { post } = require('../routes');
+
 
 
 module.exports.retrieveUser = async (req, res, next ) => {
@@ -131,3 +131,65 @@ module.exports.retrieveUser = async (req, res, next ) => {
 //         })
 //     }
 // };
+
+module.exports.followUser = async (req, res, next) => {
+
+    const { userId } = req.params;
+    const user = res.locals.user;
+
+
+    try {
+        const userToFollow = await User.findById(userId);
+        if(!userToFollow) {
+            return res
+                .status(400)
+                .send({ error: 'Could not find a user with that id.' });
+        }
+        console.log(userToFollow);
+        const followerUpdate = await Followers.updateOne(
+            { user: userId, 'followers.user': { $ne: user._id } },
+            { $push: { followers: { user: user._id } } }
+          );
+
+          
+
+
+        const followingUpdate = await Following.updateOne(
+            {user: user._id, 'following.user': { $ne: userId  }},
+            {$push: { following: { user: userId }}}
+        );
+
+        if(!followerUpdate.nModified || !followingUpdate.nModified ) {
+            if (!followerUpdate.ok ||!followingUpdate.ok) {
+                return res
+                    .status(500)
+                    .send({ error: ' Could not follow user please try again later.'});
+            }
+            // Nothing was modified in the above query meaning that the user is already following
+            // Unfollow instead
+            const followerUnfollowUpdate = await Followers.updateOne (
+                { 
+                    user: userId
+                },
+                { $pull: { followers: { user: user._id } } }
+            );
+
+            const followingUnfollowUpdate = await Following.updateOne(
+                { user: user._id},
+                {$pull: { following: { user: userId } } }
+            );
+            if (!followerUnfollowUpdate.ok || !followingUnfollowUpdate.ok) {
+                return res
+                    .status(500)
+                    .send({ error: 'Could not follow user please try again later.'} );
+            }
+            return res.send({ success: true, operation: 'unfollow' });
+        }
+
+        res.send({ success: true, operation: 'follow' });
+
+    } catch (err) {
+        next(err);
+    }
+
+}
