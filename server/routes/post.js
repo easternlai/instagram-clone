@@ -9,7 +9,9 @@ const rateLimit = require('express-rate-limit');
 
 const { requireAuth } = require('../controllers/authController');
 const {
-    createPost
+    createPost,
+    // retrievePost,
+    votePost
 } = require('../controllers/postController');
 
 const postLimiter = rateLimit({
@@ -18,5 +20,8 @@ const postLimiter = rateLimit({
 });
 
 postRouter.post('/', postLimiter, requireAuth, upload, createPost);
+postRouter.post('/:postId/vote', requireAuth, votePost);
+
+// postRouter.get('/:postId', requireAuth, retrievePost);
 
 module.exports = postRouter;

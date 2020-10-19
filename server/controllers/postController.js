@@ -83,11 +83,63 @@ module.exports.createPost = async (req, res, next) => {
         const followersDocument = await Followers.find({user: user._id });
         const followers = followersDcoument[0].followers;
 
-        //Create socket update for each follower.
+        //*****Create socket update for each follower.
 
     } catch (err) {
         next(err);
     }
 
+}
 
+// module.exports.retrievePost = async (req, res, next) => {
+//     const { postId } = req.params;
+//     try {
+//         //Retrieve the post and the post's votes
+//         const post = await Post.aggregate([
+//             {$match: { _id: ObjectId(postId) } },
+//             {
+//                 $lookup: {
+
+//                 }
+//             }
+//         ])
+//     } catch (err) {
+        
+//     }
+// }
+
+module.exports.votePost = async( req, res, next) => {
+    const { postId } = req.params;
+    const user = res.locals.user;
+
+    try {
+        const postLikeUpdate = await PostVote.updateOne(
+            { post: postId, 'votes.author': {$ne: user._id}},
+            {
+                $push: {votes: {author: user._id }}
+            }
+        );
+
+        if(!postLikeUpdate.nModified){
+            if(!postLikeUpdate.ok){
+                return res.status(500).send({ error: 'Could not vote on the post. '});
+            }
+            
+            const postDislikeUpdate = await PostVote.update(
+                { post: postId },
+                {$pull: {votes: {author: user._id }}}
+            )
+
+            if(!postDislikeUpdate.nModify){
+                if(!postDislikeUpdate.ok){
+                    return res.status(500).send({error: 'Coult not vote on the post. '});
+                }
+            }
+        } else {
+            //**** SEND NOTIFICATION CODE
+        }
+        return res.send({ success: true });
+    } catch (err) {
+        next(err);
+    }
 }
