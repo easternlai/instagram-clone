@@ -10,6 +10,6 @@ const {
 
 authRouter.post('/login', loginAuthentication);
 authRouter.post('/register', register);
-authRouter.post('/password', requireAuth, changePassword);
+authRouter.put('/password', requireAuth, changePassword);
 
 module.exports = authRouter;

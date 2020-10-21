@@ -91,22 +91,60 @@ module.exports.createPost = async (req, res, next) => {
 
 }
 
-// module.exports.retrievePost = async (req, res, next) => {
-//     const { postId } = req.params;
-//     try {
-//         //Retrieve the post and the post's votes
-//         const post = await Post.aggregate([
-//             {$match: { _id: ObjectId(postId) } },
-//             {
-//                 $lookup: {
+module.exports.retrievePost = async (req, res, next) => {
 
-//                 }
-//             }
-//         ])
-//     } catch (err) {
-        
-//     }
-// }
+
+    const { postId } = req.params;
+
+    try {
+        //Retrieve the post and the post's votes
+        const post = await Post.aggregate([
+            { $match: { _id: ObjectId(postId) } },
+            {
+                $lookup: {
+                    from: 'postvotes',
+                    localField: '_id',
+                    foreignField: 'post',
+                    as: 'postVotes'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'author',
+                    foreignField: '_id',
+                    as: 'author'
+                }
+            },
+            { $unwind: '$author'},
+            { $unwind: '$postVotes'},
+            {
+                $unset: [
+                    'author.password',
+                    'author.email',
+                    'author.private',
+                    'author.bio',
+                    'author.githubId'
+                ],
+            },
+            {
+                $addFields: { postVotes: '$postVotes.votes'}
+            },
+        ]);
+
+        console.log(post);
+        if (post.length === 0){
+            return res
+                .status(404)
+                .send({ error: 'Could not find a post with that id.'});
+        }
+
+        //*****add comments */
+        return res.send({ ...post[0] }) //***ADD COMMENT */
+    } catch (err) {
+        next(err);
+    }
+}
 
 module.exports.votePost = async( req, res, next) => {
     const { postId } = req.params;

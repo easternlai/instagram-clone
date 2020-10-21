@@ -1,10 +1,19 @@
 const User = require("../models/User");
-// const Post = require("../models/Post");
+const Post = require("../models/Post");
 const Followers = require("../models/Followers");
 const Following = require("../models/Following");
+const ConfirmationToken = require('../models/ConfirmationToken');
 const ObjectId = require("mongoose").Types.ObjectId;
 const fs = require("fs");
 const crypto = require("crypto");
+
+const { 
+  validateEmail,
+  validateFullName,
+  validateUsername,
+  validateBio,
+  validateWebsite
+} = require('../utils/validation');
 
 module.exports.retrieveUser = async (req, res, next) => {
   const { username } = req.params;
@@ -23,112 +32,100 @@ module.exports.retrieveUser = async (req, res, next) => {
         .send({ error: "Could not find a user with that username" });
     }
 
-    // const posts = await Post.aggregate([
-    //     {
-    //         $facet:{
-    //             data: [
-    //                 { $match: { author: ObjectId(user._id )}},
-    //                 { $sort: { date: -1 } },
-    //                 { $limit: 12 },
-    //                 {
-    //                     $lookup: {
-    //                         from: 'postvotes',
-    //                         localField: '_id',
-    //                         foreignField: 'post',
-    //                         as: 'postvotes'
-    //                     }
-    //                 },
-    //                 {
-    //                     $lookup: {
-    //                         from: 'comments',
-    //                         localField: '_id',
-    //                         foreignField: 'post',
-    //                         as: 'comments'
-    //                     },
-    //                 },
-    //                 {
-    //                     $lookup: {
-    //                         from: 'commentreplies',
-    //                         localField: 'comments._id',
-    //                         foreignField: 'parentComment',
-    //                         as: 'commentReplies'
-    //                     }
-    //                 },
-    //                 {
-    //                     $unwind: '$postvotes',
-    //                 },
-    //                 {
-    //                     $addFields: { image: '$thumbnail' }
-    //                 },
-    //                 {
-    //                     $project: {
-    //                         user: true,
-    //                         followers: true,
-    //                         following: true,
-    //                         comments: {
-    //                             $sum: [{ $size: 'comments'}, {$size: "commentReplies" }]
-    //                         },
-    //                         image: true,
-    //                         thumbnail: true,
-    //                         filter: true,
-    //                         caption: true,
-    //                         author: true,
-    //                         postVotes: { $size: '$postvotes.votes'}
-    //                     }
-    //                 }
-    //             ],
-    //             postCount: [
-    //                 { $match: { author: ObjectId(user._id) } },
-    //                 { $count: 'postCount' },
-    //             ]
-    //         }
-    //     },
-    //     { $unwind: '$postCount'},
-    //     {
-    //         $project: {
-    //             data: true,
-    //             postCount: '$postCount.postCount',
-    //         }
-    //     }
-    // ]);
-    // const followersDocument = await Followers.findOne({
-    //     user: ObjectId(user._id)
-    // });
+    const posts = await Post.aggregate([
+      {
+        $facet: {
+          data: [
+            { $match: { author: ObjectId(user._id) } },
+            { $sort: { date: -1 } },
+            { $limit: 12 },
+            {
+              $lookup: {
+                from: 'postvotes',
+                localField: '_id',
+                foreignField: 'post',
+                as: 'postvotes',
+              },
+            },
+            {
+              $lookup: {
+                from: 'comments',
+                localField: '_id',
+                foreignField: 'post',
+                as: 'comments',
+              },
+            },
+            {
+              $lookup: {
+                from: 'commentreplies',
+                localField: 'comments._id',
+                foreignField: 'parentComment',
+                as: 'commentReplies',
+              },
+            },
+            {
+              $unwind: '$postvotes',
+            },
+            {
+              $addFields: { image: '$thumbnail' },
+            },
+            {
+              $project: {
+                user: true,
+                followers: true,
+                following: true,
+                comments: {
+                  $sum: [{ $size: '$comments' }, { $size: '$commentReplies' }],
+                },
+                image: true,
+                thumbnail: true,
+                filter: true,
+                caption: true,
+                author: true,
+                postVotes: { $size: '$postvotes.votes' },
+              },
+            },
+          ],
+          postCount: [
+            { $match: { author: ObjectId(user._id) } },
+            { $count: 'postCount' },
+          ],
+        },
+      },
+      { $unwind: '$postCount' },
+      {
+        $project: {
+          data: true,
+          postCount: '$postCount.postCount',
+        },
+      },
+    ]);
+    const followersDocument = await Followers.findOne({
+        user: ObjectId(user._id)
+    });
 
-    // const followingDocument = await Following.findOne({
-    //     user: ObjectId(user._id)
-    // });
+    const followingDocument = await Following.findOne({
+        user: ObjectId(user._id)
+    });
 
     return res.send({
       user,
-      // followers: followersDocument.followers.length,
-      // following: followingDocument.following.length,
-      // // Check if the requestin user follows the retrived user
-      // isFollowing: requestingUser
-      //     ? !!followersDocument.followers.find(
-      //         (follower) => String(follower.user) === String(requestingUser._id)
-      //     )
-      //     : false,
-      // posts: posts[0]
+      followers: followersDocument.followers.length,
+      following: followingDocument.following.length,
+      // Check if the requestin user follows the retrived user
+      isFollowing: requestingUser
+          ? !!followersDocument.followers.find(
+              (follower) => String(follower.user) === String(requestingUser._id)
+          )
+          : false,
+      posts: posts[0]
     });
   } catch (err) {
     next(err);
   }
 };
 
-// module.exports.confirmUser = async (req, res, next) => {
-//     const { token } = req.body;
-//     const user = res.locals.users;
 
-//     try {
-
-//     } catch (err) {
-//         const confirmToken = await confirmToken.findOne({
-//             token,
-//             user: user._id
-//         })
-//     }
-// };
 
 module.exports.followUser = async (req, res, next) => {
   const { userId } = req.params;
@@ -141,7 +138,7 @@ module.exports.followUser = async (req, res, next) => {
         .status(400)
         .send({ error: "Could not find a user with that id." });
     }
-    console.log(userToFollow);
+
     const followerUpdate = await Followers.updateOne(
       { user: userId, "followers.user": { $ne: user._id } },
       { $push: { followers: { user: user._id } } }
@@ -186,7 +183,6 @@ module.exports.followUser = async (req, res, next) => {
 };
 
 const retrieveRelatedUsers = async (user, userId, offset, followers) => {
-    console.log('test');
   const pipeline = [
     {
       $match: { user: ObjectId(userId) },
@@ -258,6 +254,100 @@ const retrieveRelatedUsers = async (user, userId, offset, followers) => {
   return aggregation[0].users;
 };
 
+module.exports.retrievePosts = async ( req, res, next ) => {
+  // Retlieve a user's posts with the post's comments & likes
+  const { username, offset = 0} = req.params;
+  
+  try {
+    const posts = await Post.aggregate([
+      { $sort: { date: -1}},
+      { $skip: Number(offset)},
+      { $limit: 12 },
+        { $lookup: {
+          from: 'users',
+          localField: 'author',
+          foreignField: '_id',
+          as: 'user'  
+        }
+      },
+      { $match: { 'user.username': username } },
+      {
+        $lookup: {
+          from: 'comments',
+          localField: '_id',
+          foreignField: 'post',
+          as: 'comments'
+        }
+      },
+      {
+        $lookup: {
+          from: 'postvotes',
+          localField: '_id',
+          foreignField: 'post',
+          as: 'postVotes'
+        }
+      },
+      { $unwind: '$postVotes'},
+      {
+        $project: {
+          image: true,
+          caption: true,
+          date: true,
+          'user.username': true,
+          'user.avatar': true,
+          comments: { $size: '$comments' },
+          postVotes: { $size: '$postVotes.votes'}
+        }
+      }
+    ]);
+    if (posts.length === 0) {
+      return res.status(404).send({ error: 'Could not find any posts.' });
+    }
+    return res.send(posts);
+  } catch (err) {
+    next(err);    
+  }
+}
+
+module.exports.bookmarkPost = async (req, res, next) => {
+  const {postId} = req.params;
+  const user = res.locals.user;
+
+  try {
+    const post = await Post.findById(postId);
+    if(!post){
+      return res.status(404).send({error: "Could not find a post with this Id. "});
+    }
+
+    const userBookmarkUpdate = await User.updateOne(
+      {
+        _id: user._id,
+        'bookmarks.post': { $ne: postId}
+      },
+      {$push: {bookmarks: {post: postId }}}
+    );
+
+    console.log(userBookmarkUpdate);
+
+    if(!userBookmarkUpdate.nModified){
+      if(!userBookmarkUpdate.ok){
+        return res.status(500).send({ error: "Could not bookmark this post. "});
+      }
+      const userRemoveBookmarkUpdate = await User.updateOne(
+        {_id: user._id},
+        {$pull: {bookmarks: {post: postId}}}
+      );
+      if(!userRemoveBookmarkUpdate.nModified){
+        return res.status(500).send({ error: ' Could not unbookmark this post. '})
+      }
+      return res.send({ success: true, operation: 'remove'});
+    }
+    return res.send({ success: true, operation: 'add'});
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports.retrieveFollowing = async (req, res, next) => {
   const { userId, offset = 0 } = req.params;
   const user = res.locals.user;
@@ -280,3 +370,103 @@ module.exports.retrieveFollowers = async (req, res, next) => {
     next(err);
   }
 };
+
+module.exports.searchUsers = async (req, res, next ) => {
+const {username, offset = 0 } = req.params;
+
+if(!username) {
+  return res.status(400).send({ error: 'Plese provide a user to search for. '});
+}
+
+try {
+  const users = await User.aggregate([
+    {
+      $match: {
+        username: {$regex: new RegExp(username), $options: 'i'}
+      }
+    },
+    {
+      $lookup: {
+        from: 'followers',
+        localField: '_id',
+        foreignField: 'user',
+        as: 'followers'
+      },
+    },
+    {
+      $unwind: '$followers'
+    },
+    {
+      $addFields: {
+        followersCount: { $size: '$followers.followers'}
+      }
+    },
+    {
+      $sort: {followersCount: -1 }
+    },
+    {
+      $skip: Number(offset)
+    },
+    {
+      $limit: 10
+    },
+    {
+      $project: {
+        _id: true,
+        username: true,
+        avatar: true,
+        fullName: true
+      }
+    }
+  ]);
+  if(users.length === 0) {
+    return res.status(404).send({ error: 'Could not find any users matching the criteria.' });
+  }
+  return res.send(users);
+} catch (err) {
+  next(err);
+  }
+}
+
+module.exports.confirmUser = async (req, res, next) => {
+    const { token } = req.body;
+    const user = res.locals.user;
+
+    console.log(token);
+
+    try {
+      const confirmationToken = await ConfirmationToken.findOne({
+        token,
+        user: user._id
+    });
+    res.send(confirmationToken);
+    } catch (err) {
+      next(err);
+    }
+};
+
+module.exports.updateProfile = async (req, res, next ) => {
+  const user = res.locals.user;
+  const { fullName, username, website, bio, email} = req.body;
+  let confirmationToken = undefined;
+  let updateField = {};
+  try {
+    const userDocument = await User.findOne({ _id: user._id });
+
+    if(fullName){
+      const fullNameError= validateFullName(fullName);
+      if(fullNameError) return res.status(404).send({ error: fullNameError});
+      userDocument.fullName = fullName;
+      updateFields.fullName = fullName;
+    }
+
+    if(username) {
+      const usernameError = validateUsername(username);
+
+    }
+
+  } catch (err) {
+    next(err);
+  }
+
+}

@@ -6,10 +6,10 @@ const CommentVoteSchema = new Schema ({
         type: Schema.ObjectId,
         ref: 'Comment'
     },
-    vote: [
+    votes: [
         {
             author: {
-                type: Schema.Object,
+                type: Schema.ObjectId,
                 ref: 'User'
             }
         }

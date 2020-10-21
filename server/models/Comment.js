@@ -40,7 +40,7 @@ CommentSchema.pre('save', async function (next){
             await mongoose.model('CommentVote').create( { comment: this._id });
             next();
         } catch (err) {
-            next();
+            next(err);
         }
     }
     next();

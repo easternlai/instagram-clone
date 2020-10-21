@@ -17,34 +17,34 @@ const CommentReplySchema = new Schema({
     },
 });
 
-CommentReplySchema.pre('deleteMany', async function (next){
-    const parentCommentId = this.getQuery()['parentComment'];
-    try {
-        const commentReply = await mongoose
-            .model('CommentReply')
-            .findOne({ parentComment: parentCommentId});
-        if(commentReply){
-            await mongoose
-                .model('CommentReplyVote')
-                .deleteOne({ comment: commentReply._id})
-        }
-        next();
-    } catch (err) {
-        return next(err);
-    }
-});
+// CommentReplySchema.pre('deleteMany', async function (next){
+//     const parentCommentId = this.getQuery()['parentComment'];
+//     try {
+//         const commentReply = await mongoose
+//             .model('CommentReply')
+//             .findOne({ parentComment: parentCommentId});
+//         if(commentReply){
+//             await mongoose
+//                 .model('CommentReplyVote')
+//                 .deleteOne({ comment: commentReply._id})
+//         }
+//         next();
+//     } catch (err) {
+//         return next(err);
+//     }
+// });
 
-CommentReplySchema.pre('deleteOne', async function (next) {
-    const commentReplyId = this.getQuery()['_id'];
-    try {
-        await mongoose
-            .model('CommentReplyVote')
-            .deleteOne({ comment: commentReplyId });
-        next();
-    } catch (err) {
-        return next(err);
-    }
-});
+// CommentReplySchema.pre('deleteOne', async function (next) {
+//     const commentReplyId = this.getQuery()['_id'];
+//     try {
+//         await mongoose
+//             .model('CommentReplyVote')
+//             .deleteOne({ comment: commentReplyId });
+//         next();
+//     } catch (err) {
+//         return next(err);
+//     }
+// });
 
 CommentReplySchema.pre('save', async function (next){
     if (this.isNew){
