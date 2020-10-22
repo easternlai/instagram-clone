@@ -11,8 +11,12 @@ const { requireAuth } = require('../controllers/authController');
 const {
     createPost,
     retrievePost,
-    votePost
+    votePost,
+    deletePost,
+    retrievePostFeed,
+    retrieveSuggestedPosts
 } = require('../controllers/postController');
+const filters = require('../utils/filters');
 
 const postLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -22,6 +26,13 @@ const postLimiter = rateLimit({
 postRouter.post('/', postLimiter, requireAuth, upload, createPost);
 postRouter.post('/:postId/vote', requireAuth, votePost);
 
-postRouter.get('/:postId', requireAuth, retrievePost);
+postRouter.get('/suggested/:offset', requireAuth, retrieveSuggestedPosts);
+postRouter.get('/filters', (req, res) => {
+    res.send({ filters });
+});
 
+postRouter.get('/:postId', requireAuth, retrievePost);
+postRouter.get('/feed/:offset', requireAuth, retrievePostFeed);
+
+postRouter.delete('/:postId', requireAuth, deletePost);
 module.exports = postRouter;
