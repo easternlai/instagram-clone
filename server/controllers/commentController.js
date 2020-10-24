@@ -3,8 +3,12 @@ const CommentVote = require('../models/CommentVote');
 const CommentReply = require('../models/CommentReply');
 const CommentReplyVote = require('../models/CommentReplyVote');
 const Post = require('../models/Post');
-const CommentReplyVoteModel = require('../models/CommentReplyVote');
 const ObjectId = require('mongoose').Types.ObjectId;
+
+const { 
+    retrieveComments 
+} = require('../utils/controllerUtils');
+const commentRouter = require('../routes/comment');
 
 module.exports.createComment = async ( req, res, next ) => {
 
@@ -39,6 +43,35 @@ module.exports.createComment = async ( req, res, next ) => {
     }
 
     //***NOTIFICATION CODE */
+}
+
+module.exports.deleteComment = async (req, res, next ) => {
+    const { commentId } = req.params;
+    const user = res.locals.user;
+
+    try {
+        const comment = await Comment.findOne({ 
+            _id: commentId,
+            author: user._id 
+        });
+        if(!comment){
+            return res.status(404).send({
+                error:
+                'Could not find a comment with that id associated with the user.'
+            })
+        }
+
+        const commentDelete = await Comment.deleteOne({
+            _id: commentId
+        });
+        if(!commentDelete.deletedCount) {
+            return res.status(500).send({ error: 'Could not delete the comment. '});
+        }
+        res.status(204).send({success:true});
+    } catch (err) {
+        next(err);
+    }
+
 }
 
 module.exports.voteComment = async (req, res, next ) => {
@@ -113,6 +146,36 @@ module.exports.createCommentReply = async (req, res, next) => {
     //**NOTIFICATION CODE  */
 }
 
+module.exports.deleteCommentReply = async (req, res, next) => {
+    const { commentReplyId } = req.params;
+    const user = res.locals.user;
+
+    try {
+        const commentReply = await CommentReply.findOne({
+            _id: commentReplyId,
+            author: user._id
+        });
+        if (!commentReply) {
+            return res.status(404).send({
+                error: 
+                'Could not find a comment reply with that id associated with the user. '
+            });
+        }
+
+        const commentReplyDeletion = await CommentReply.deleteOne({
+            _id: commentReplyId
+        });
+        if (!commentReplyDeletion.deletedCount) {
+            return res
+                .status(500)
+                .send({ error: 'Could not delete the comment reply. '});
+        }
+        return res.status(204).send({success: true });
+    } catch (err) {
+        next(err);
+    }
+}
+
 module.exports.voteCommentReply =async (req, res, next ) => {
 
     const {commentReplyId} = req.params;
@@ -148,6 +211,78 @@ module.exports.voteCommentReply =async (req, res, next ) => {
     } catch (err) {
         next(err);
     }
-
 }
+
+module.exports.retrieveCommentReplies = async (req, res, next) => {
+    const { parentCommentId, offset = 0} = req.params;
+
+    try {
+        const comment = await Comment.findById(parentCommentId);
+        if(!comment){
+            return res.status(404).send({ error: 'Could not find a parent comment with that id. '});
+        }
+        console.log(parentCommentId);
+        const commentReplies = await CommentReply.aggregate([
+            { $match: { parentComment: ObjectId(parentCommentId)}},
+            { $sort: { date: -1}},
+            { $skip: Number(offset)},
+            { $limit: 3},
+            {
+                $lookup: {
+                    from: 'commentreplyvotes',
+                    localField: '_id',
+                    foreignField: 'comment',
+                    as: 'commentReplyVotes'
+                }
+            },
+            {
+                $unwind: '$commentReplyVotes'
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'author',
+                    foreignField: '_id',
+                    as: 'author'
+                }
+            },
+            {
+                $unwind: '$author',
+            },
+            {
+                $unset: [
+                    'author.private',
+                    'author.password',
+                    'author.bookmarks',
+                    'author.email'
+                ]
+            },
+            {
+                $addFields: {
+                    commentReplyVotes: '$commentReplyVotes.votes'
+                }
+            }
+        ]);
+
+        if(commentReplies.length=== 0) {
+            return res.status(404).send({
+                error: 'Could not find any replies for the specified comment.'
+            });
+        }
+        return res.send(commentReplies);
+    } catch (err) {
+        next(err);
+    }
+}
+
+module.exports.retrieveComments = async (req, res, next) => {
+    const { postId, offset, exclude } = req.params;
+    try {
+        const comments = await retrieveComments(postId, offset, exclude);
+
+        return res.send(comments);
+    }catch(err){
+        next(err);
+    }
+};
 

@@ -10,6 +10,7 @@ const fs = require('fs');
 const ObjectId = require('mongoose').Types.ObjectId;
 
 const {
+    retrieveComments,
     formatCloudinaryUrl,
     populatePostsPipeline
 } = require('../utils/controllerUtils');
@@ -30,7 +31,6 @@ module.exports.createPost = async (req, res, next) => {
             hashtags.push(result.value.substring(1));
         }
     });
-    
 
     if(!req.file) {
         return res 
@@ -55,14 +55,17 @@ module.exports.createPost = async (req, res, next) => {
             true
         );
         fs.unlinkSync(req.file.path);
+
         post = new Post({
             image: response.secure_url,
             thumbnail: thumbnailUrl,
             filter: filterObject ? filterObject.filter : ' ',
             caption,
             author: user._id,
-            hashtags
+            hashtags:hashtags
         });
+        console.log(hashtags);
+        console.log(post);
 
         const postVote = new PostVote({
             post: post._id
@@ -81,8 +84,8 @@ module.exports.createPost = async (req, res, next) => {
     }
 
     try {
-        const followersDocument = await Followers.find({user: user._id });
-        const followers = followersDcoument[0].followers;
+        // const followersDocument = await Followers.find({user: user._id });
+        // const followers = followersDcoument[0].followers;
 
         //*****Create socket update for each follower.
 
@@ -159,15 +162,16 @@ module.exports.retrievePost = async (req, res, next) => {
             },
         ]);
 
-        console.log(post);
         if (post.length === 0){
             return res
                 .status(404)
                 .send({ error: 'Could not find a post with that id.'});
         }
 
+        const comments = await retrieveComments(postId, 0);
+        console.log(comments);
         //*****add comments */
-        return res.send({ ...post[0] }) //***ADD COMMENT */
+        return res.send({ ...post[0], commentData: comments }) //***ADD COMMENT */
     } catch (err) {
         next(err);
     }
@@ -397,3 +401,53 @@ module.exports.retrieveSuggestedPosts = async (req, res, next ) => {
         next(err);
     }
 }
+
+module.exports.retrieveHashtagPosts = async (req, res, next ) => {
+    const { hashtag, offset } = req.params;
+
+    try {
+        const posts = await Post.aggregate([
+            {
+                $facet: {
+                    posts: [
+                        {
+                            $match: { hashtags: hashtag}
+                        },
+                        { 
+                            $skip: Number(offset),
+                        },
+                        {
+                            $limit: 20
+                        },
+                        ...populatePostsPipeline
+                    ],
+                    postCount: [
+                        {
+                            $match: {hashtags: hashtag}
+                        },
+                        {
+                            $group: {
+                                _id: null,
+                                count: { $sum: 1 }
+                            }
+                        },
+                    ] 
+                }
+            },
+            {
+                $unwind: '$postCount'
+            },
+            {
+                $addFields: {
+                    postCount: '$postCount.count'
+                }
+            }
+            
+        ]);
+    
+    return res.send(posts[0]);
+    }catch(err){
+        next(err)
+    }
+}
+
